@@ -25,18 +25,28 @@ export default function Detector() {
     let processedUrl = url.trim();
     if (!processedUrl) return;
 
-    // Auto-prepend https if missing for basic validation check
+    // Smart Validation: If it looks like a domain, prepending https for processing
+    if (!processedUrl.includes('.')) {
+      setError('Invalid domain structure.');
+      return;
+    }
+
     if (!processedUrl.startsWith('http://') && !processedUrl.startsWith('https://')) {
       processedUrl = `https://${processedUrl}`;
     }
 
-    if (!validateUrl(processedUrl)) {
-      setError('Please enter a valid URL (e.g., https://example.com)');
+    // Attempt normalized validation
+    try {
+      new URL(processedUrl);
+    } catch (_) {
+      setError('Please enter a valid active URL.');
       return;
     }
 
     setLoading(true);
     setReport(null);
+
+    // Call the AI API directly for hybrid evaluation of both whitelist and suspect domains
     const result = await analyzeUrl(processedUrl);
     setReport(result);
     setLoading(false);
@@ -51,7 +61,8 @@ export default function Detector() {
     }
   };
 
-  const getVerdictIcon = (verdict: string) => {
+  const getVerdictIcon = (verdict: string, isOfficial?: boolean) => {
+    if (isOfficial) return <ShieldCheck className="w-10 h-10 text-cyber-safe animate-pulse" />;
     switch (verdict) {
       case 'Safe': return <ShieldCheck className="w-8 h-8" />;
       case 'Suspicious': return <ShieldAlert className="w-8 h-8" />;
@@ -131,10 +142,15 @@ export default function Detector() {
             className="grid grid-cols-1 md:grid-cols-3 gap-6"
           >
             <div className={`md:col-span-1 rounded-xl border p-6 flex flex-col items-center text-center space-y-4 ${getVerdictStyles(report.verdict)}`}>
-              {getVerdictIcon(report.verdict)}
+              {getVerdictIcon(report.verdict, report.isOfficial)}
               <div className="space-y-1">
                 <p className="text-xs uppercase font-bold tracking-widest opacity-70 italic font-serif">Assessment</p>
                 <h3 className="text-3xl font-black">{report.verdict}</h3>
+                {report.isOfficial && (
+                  <div className="px-2 py-0.5 bg-cyber-safe text-[8px] text-black font-black uppercase tracking-[0.2em] rounded animate-bounce">
+                    Official Gateway
+                  </div>
+                )}
               </div>
               <div className="w-full space-y-1">
                 <div className="flex justify-between text-[9px] font-mono uppercase tracking-tighter opacity-80">

@@ -12,33 +12,32 @@ export interface PhishReport {
     sslStatus: string;
     redirectChain: string;
   };
+  isOfficial?: boolean;
 }
 
 export async function analyzeUrl(url: string): Promise<PhishReport> {
-  const prompt = `Analyze this URL for phishing characteristics: ${url}
-  Look for:
-  - Typosquatting (e.g., g0ogle.com instead of google.com)
-  - Suspicious TLDs
-  - Length and complexity
-  - Domain age (if you can infer patterns)
-  - Known phishing patterns
-  - Domain Reputation (is it a well-known brand?)
-  - SSL/HTTPS expectations
-  - Potential redirect traps
+  const prompt = `Analyze this URL for phishing and authenticity: ${url}
+  
+  CORE TASKS:
+  1. Determine if this is the OFFICIAL domain for a well-known brand/bank (e.g., google.com, chase.com).
+  2. If it is the official gateway, set the score to 0 and verdict to "Safe".
+  3. Look for Typosquatting (g0ogle.com), deceptive subdomains (chase.login-secure.com), and suspicious TLDs.
+  4. Evaluate "Brand Integrity": Is it pretending to be an official bank while residing on a generic host?
   
   Return a JSON object with the following structure:
   {
-    "score": number (0-100),
+    "score": number (0-100, where 0 is perfectly authentic/safe),
     "verdict": "Safe" | "Suspicious" | "Malicious",
     "reasons": string[],
     "recommendations": string[],
     "details": {
-      "domainReputation": "string describing domain trust level",
-      "sslStatus": "string describing SSL/Security posture",
-      "redirectChain": "string describing potential for malicious redirection"
-    }
+      "domainReputation": "string (e.g. 'Highly Trusted Official Brand')",
+      "sslStatus": "string (e.g. 'Verified EV Certificate')",
+      "redirectChain": "string (e.g. 'Direct Encrypted Link')"
+    },
+    "isOfficial": boolean (true if it's a known top-tier brand/bank portal)
   }
-  Do not include markdown formatting in your response, just the raw JSON.`;
+  Do not include markdown formatting in your response.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -55,7 +54,8 @@ export async function analyzeUrl(url: string): Promise<PhishReport> {
       verdict: result.verdict ?? "Suspicious",
       reasons: result.reasons ?? ["Unable to fully analyze"],
       recommendations: result.recommendations ?? ["Proceed with extreme caution"],
-      details: result.details
+      details: result.details,
+      isOfficial: result.isOfficial
     };
   } catch (error) {
     console.error("Phish Detection Error:", error);
